@@ -2,32 +2,38 @@ import { useEffect, useState } from 'react'
 import { Data } from '../types'
 import { searchData } from '../services/search'
 import { toast } from 'sonner'
+import { useDebounce } from '@uidotdev/usehooks'
 
 const Search = ({initialData} : { initialData : Data}) => {
 
     const [data, setData] = useState<Data>(initialData)
-    const [search, setSearch] = useState<string>('')
+    const [search, setSearch] = useState<string>(() =>{
+        const searchParams = new URLSearchParams(window.location.search)
+        return searchParams.get('q') ?? ''
+    })
 
+    const DEBOUNCE_TIME = 300
+    const debouncedSearch = useDebounce(search, DEBOUNCE_TIME)
 
     const handleSearch = (event : React.ChangeEvent<HTMLInputElement>) =>{
         setSearch(event.target.value)
     }
 
     useEffect(()=>{
-        const newPathName = search === '' 
-        ? window.location.pathname : `?q=${search}`
+        const newPathName = debouncedSearch === '' 
+        ? window.location.pathname : `?q=${debouncedSearch}`
 
         window.history.replaceState({}, '', newPathName)
-    },[search])
+    },[debouncedSearch])
 
     useEffect(()=>{
-        if(!search){
+        if(!debouncedSearch){
             setData(initialData)
             return
         }
 
         //llamada a la api
-        searchData(search)
+        searchData(debouncedSearch)
         .then(response =>{
             const [err, newData] = response
             if(err){
@@ -37,13 +43,13 @@ const Search = ({initialData} : { initialData : Data}) => {
 
             if(newData) setData(newData)
         })
-    },[search, initialData])
+    },[debouncedSearch, initialData])
     
   return (
     <div>
         <h1>Search</h1>
         <form>
-            <input onChange={handleSearch} type="text" placeholder='Buscar Información...' />
+            <input onChange={handleSearch} type="text" placeholder='Buscar Información...' defaultValue={search}/>
         </form>
 
         <ul>
